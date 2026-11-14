@@ -123,6 +123,15 @@ html{scroll-behavior:smooth}
 .orden .ath .copiar{flex:none;white-space:nowrap;font-size:16px;padding:2px 8px;letter-spacing:0}
 .orden .ath .tel{flex:none}
 .orden .ath .copiar{position:relative;top:-5px;padding:3px 8px 1px}
+.modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px));background:rgba(45,27,78,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.modal.abierto{display:flex}
+.modal-card{background:#fff;border:3px dashed #ff2fa0;border-radius:24px;padding:26px 22px 22px;max-width:420px;width:100%;text-align:center;color:#2d1b4e;box-shadow:0 16px 40px rgba(0,0,0,.3)}
+.modal-card .icon{font-size:64px;line-height:1;color:#1a7f37}
+.modal-card.info .icon{color:#ff2fa0}
+.modal-card h3{font-family:"Bagel Fat One","Dongle",sans-serif;font-weight:400;font-size:30px;line-height:1.1;margin:8px 0 10px}
+.modal-card p{margin:0 0 20px;font-size:26px;line-height:1.1}
+.modal .btn{border:0;cursor:pointer;font-family:inherit;width:100%}
+body.modal-open{overflow:hidden}
 </style>
 </head>
 <body>
@@ -208,7 +217,7 @@ html{scroll-behavior:smooth}
 
   <section id="orden" class="orden">
     <h2>¡Haz tu orden!</h2>
-    <div class="cerrado"><b id="cerrado-t">¡Se agotaron las limonadas por hoy!</b><span id="cerrado-s">Gracias por tu apoyo. ¡Nos vemos en la próxima venta!</span></div>
+    <div class="cerrado"><b id="cerrado-t">¡Se agotaron las limonadas!</b><span id="cerrado-s">Gracias por tu apoyo. ¡Nos vemos en la próxima venta!</span></div>
     <form id="f" novalidate>
       <p id="quedan" class="quedan"></p>
       <label>Nombre<input name="nombre" required autocomplete="name"></label>
@@ -240,6 +249,14 @@ html{scroll-behavior:smooth}
 </main>
 <footer>Hecho con cariño <span class="icon">favorite</span></footer>
 
+<div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-t" aria-describedby="modal-p">
+  <div class="modal-card" id="modal-card">
+    <span class="icon" id="modal-icon" aria-hidden="true">check_circle</span>
+    <h3 id="modal-t"></h3>
+    <p id="modal-p"></p>
+    <button type="button" class="btn" id="modal-ok">OK</button>
+  </div>
+</div>
 <script>
   // Pega aquí el enlace de tu Apps Script (termina en /exec):
   var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrpsY_2BhJnVQOz3zB0_y-l0qecLCM-Pe4TC3RevkRDOsX3d1Dmmy1k-tUYl_b0ZVE/exec";
@@ -256,6 +273,20 @@ html{scroll-behavior:smooth}
   var msg = document.getElementById("msg");
   var quedan = null;
 
+  var modalEl = document.getElementById("modal"), mCard = document.getElementById("modal-card");
+  var cerradoVisto = false;
+  function abrirModal(tipo, titulo, texto){
+    mCard.className = "modal-card" + (tipo === "info" ? " info" : "");
+    document.getElementById("modal-icon").textContent = tipo === "info" ? "info" : "check_circle";
+    document.getElementById("modal-t").textContent = titulo;
+    document.getElementById("modal-p").textContent = texto;
+    modalEl.classList.add("abierto"); document.body.classList.add("modal-open");
+    document.getElementById("modal-ok").focus();
+  }
+  function cerrarModal(){ modalEl.classList.remove("abierto"); document.body.classList.remove("modal-open"); }
+  document.getElementById("modal-ok").addEventListener("click", cerrarModal);
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") cerrarModal(); });
+
   function fechaBonita(f){
     if (!f) return "";
     return new Date(f + "T12:00:00Z").toLocaleDateString("es-PR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -270,10 +301,12 @@ html{scroll-behavior:smooth}
         t.textContent = "Las pre-órdenes ya cerraron";
         c.textContent = "Te esperamos" + (fb ? " el " + fb : "") + " de 10:00 am a 4:00 pm. ¡Atendemos órdenes regulares hasta agotar existencias!";
       } else {
-        t.textContent = "¡Se agotaron las limonadas por hoy!";
+        t.textContent = "¡Se agotaron las limonadas!";
         c.textContent = "Gracias por tu apoyo. ¡Nos vemos en la próxima venta!";
       }
-      sec.classList.add("cerrada"); return;
+      sec.classList.add("cerrada");
+      if (!cerradoVisto) { cerradoVisto = true; abrirModal("info", t.textContent, c.textContent); }
+      return;
     }
     sec.classList.remove("cerrada");
     document.getElementById("quedan").textContent = (quedan !== null && quedan <= 30) ? "Quedan " + quedan + (quedan === 1 ? " limonada" : " limonadas") : "";
@@ -372,7 +405,8 @@ html{scroll-behavior:smooth}
       };
       return fetch(SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(datos) });
     }).then(function(){
-      aviso("¡Gracias, " + nombre + "! Recibimos tu orden. Verificaremos tu donativo y te avisaremos por WhatsApp cuando esté lista.", "ok");
+      aviso("");
+      abrirModal("ok", "¡Orden recibida!", "¡Gracias, " + nombre + "! Recibimos tu orden. Verificaremos tu pago y te avisaremos por WhatsApp cuando esté lista.");
       f.reset(); dropEstado();
       SABORES.forEach(function(x){ cant[x] = 0; });
       cont.querySelectorAll("output").forEach(function(o){ o.textContent = 0; });
