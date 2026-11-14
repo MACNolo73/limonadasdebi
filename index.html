@@ -212,7 +212,7 @@ html{scroll-behavior:smooth}
     <form id="f" novalidate>
       <p id="quedan" class="quedan"></p>
       <label>Nombre<input name="nombre" required autocomplete="name"></label>
-      <label>Número de WhatsApp<input name="whatsapp" type="tel" inputmode="tel" required autocomplete="tel" placeholder="787-000-0000"></label>
+      <label>Número de WhatsApp<input name="whatsapp" type="tel" inputmode="numeric" maxlength="12" required autocomplete="tel" placeholder="787-000-0000"></label>
       <fieldset><legend>¿Cuántas limonadas de 32 oz quieres?</legend><div id="sabores"></div></fieldset>
       <div class="total">Total: <b id="total">$0</b></div>
       <p id="dia" class="dia"></p>
@@ -320,6 +320,14 @@ html{scroll-behavior:smooth}
   }
   inp.addEventListener("change", dropEstado);
 
+  var tel = document.querySelector('input[name="whatsapp"]');
+  tel.addEventListener("input", function(){
+    var d = tel.value.replace(/\D/g, "");
+    if (d.length > 10 && d.charAt(0) === "1") d = d.slice(1);
+    d = d.slice(0, 10);
+    tel.value = d.length > 6 ? d.slice(0, 3) + "-" + d.slice(3, 6) + "-" + d.slice(6) : d.length > 3 ? d.slice(0, 3) + "-" + d.slice(3) : d;
+  });
+
   function aviso(t, cls){ msg.textContent = t; msg.className = cls || ""; }
 
   document.getElementById("copiar").onclick = function(){
@@ -348,6 +356,7 @@ html{scroll-behavior:smooth}
   document.getElementById("f").addEventListener("submit", function(e){
     e.preventDefault();
     var f = e.target, n = total(), file = f.recibo.files[0];
+    if (!/^\d{3}-\d{3}-\d{4}$/.test(f.whatsapp.value.trim())) { aviso("Escribe tu número de WhatsApp completo: 000-000-0000.", "err"); return; }
     if (!f.nombre.value.trim() || !f.whatsapp.value.trim() || !f.hora.value || !f.ref.value.trim()) { aviso("Por favor completa todos los campos.", "err"); return; }
     if (n === 0) { aviso("Escoge al menos una limonada.", "err"); return; }
     if (!file) { aviso("Sube la foto de tu recibo de ATH Móvil.", "err"); return; }
