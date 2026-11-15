@@ -431,24 +431,17 @@ body.modal-open{overflow:hidden}
     cargandoEl.classList.remove("abierto");
     if (!modalEl.classList.contains("abierto")) document.body.classList.remove("modal-open");
   }
-  // Envía la orden y avanza el porcentaje según lo que se va subiendo
+  // Envía la orden. El porcentaje avanza como estimado mientras el script guarda todo
   function enviar(cuerpo){
-    return new Promise(function(res, rej){
-      var xhr = new XMLHttpRequest(), subido = false, creep = null;
-      xhr.open("POST", SCRIPT_URL);
-      xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
-      xhr.timeout = 90000;
-      xhr.upload.onprogress = function(e){ if (e.lengthComputable) setProgreso(30 + 60 * e.loaded / e.total, "Enviando tu orden…"); };
-      xhr.upload.onload = function(){
-        subido = true; setProgreso(90, "Guardando tu orden…");
-        creep = setInterval(function(){ if (pctActual < 98) setProgreso(pctActual + 0.6); }, 250);
-      };
-      function fin(texto){ clearInterval(creep); res({ texto: texto }); }
-      xhr.onload = function(){ fin(xhr.responseText); };
-      xhr.onerror = function(){ if (subido) fin(null); else { clearInterval(creep); rej(new Error("red")); } };
-      xhr.ontimeout = function(){ if (subido) fin(null); else { clearInterval(creep); rej(new Error("red")); } };
-      xhr.send(cuerpo);
-    });
+    var ctl = new AbortController();
+    var corte = setTimeout(function(){ ctl.abort(); }, 90000);
+    var creep = setInterval(function(){
+      setProgreso(pctActual + (96 - pctActual) * 0.05, pctActual > 70 ? "Guardando tu orden…" : "Enviando tu orden…");
+    }, 250);
+    function limpiar(){ clearInterval(creep); clearTimeout(corte); }
+    return fetch(SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: cuerpo, signal: ctl.signal })
+      .then(function(r){ return r.text(); })
+      .then(function(t){ limpiar(); return { texto: t }; }, function(){ limpiar(); throw new Error("red"); });
   }
   var MOTIVOS = {
     "cerrado": "Las órdenes están cerradas en este momento.",
@@ -529,7 +522,7 @@ body.modal-open{overflow:hidden}
     }).catch(function(err){
       ocultarCarga();
       if (err && err.message === "detenido") return;
-      aviso(err && err.message === "img" ? "No pudimos leer la foto. Prueba con otra captura del recibo." : "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.", "err");
+      aviso(err && err.message === "img" ? "No pudimos leer la foto. Prueba con otra captura del recibo." : "No pudimos confirmar el envío de tu orden. Revisa tu conexión e inténtalo de nuevo. Si ya habías enviado una orden, escríbenos antes de repetirla.", "err");
     }).then(function(){ btn.disabled = false; });
   });
 </script>
